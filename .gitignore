@@ -1,0 +1,13 @@
+# 系统
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 临时文件
+*.tmp
+*.part
+*.zip
+
+# 不要提交的本地内容
+.idea/
+.vs/

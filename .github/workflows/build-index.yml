@@ -1,0 +1,63 @@
+name: Build marketplace index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/**'
+      - 'tools/build-index.ps1'
+      - '.github/workflows/build-index.yml'
+  pull_request:
+    paths:
+      - 'plugins/**'
+      - 'tools/**'
+      - '.github/workflows/build-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-index-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # PR：只校验插件目录（清单格式、包内一致性、哈希、logo），不写文件
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 校验插件目录
+        shell: powershell
+        run: .\tools\build-index.ps1 -CheckOnly
+
+  # main：重新生成 index.json 与 README 插件表格并提交
+  build:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 生成 index.json 与 README 清单
+        shell: powershell
+        run: .\tools\build-index.ps1
+
+      - name: 提交生成物
+        shell: powershell
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.json README.md
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "chore: rebuild plugin index"
+            git push
+            Write-Output "已提交更新后的清单"
+          } else {
+            Write-Output "清单无变化，无需提交"
+          }
