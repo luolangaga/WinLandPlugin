@@ -39,6 +39,20 @@ WinLandPlugin/
 2. 点「安装」→ 客户端下载 `.lwp`、校验 SHA-256、安装并启用；
 3. 「详情」里有完整说明、许可证、主页与包哈希；启用/禁用/删除在「插件管理」。
 
+## 市场源与镜像
+
+**GitHub 是唯一源头**（投稿、Issue、Action 都在这边），下面几个地址只是分发用的镜像。
+客户端默认按顺序尝试、命中即停，并记住上次成功的源；也可以在「插件市场 → 市场源」里手动指定：
+
+| 源 | 地址 | 说明 |
+| :--- | :--- | :--- |
+| GitHub 官方 | `https://raw.githubusercontent.com/luolangaga/WinLandPlugin/main` | 内容最新；部分国内网络解析不了该域名 |
+| **GitCode 国内镜像** | `https://api.gitcode.com/api/v5/repos/luolangaga/WinLandPlugin/raw` | <https://gitcode.com/luolangaga/WinLandPlugin> 自动同步本仓库，国内访问快 |
+| jsDelivr CDN | `https://cdn.jsdelivr.net/gh/luolangaga/WinLandPlugin@main` | 海外 CDN，分支内容有缓存（更新会延迟） |
+| jsDelivr 备用域 | `https://gcore.jsdelivr.net/gh/luolangaga/WinLandPlugin@main` | 同上，`cdn` 域不通时使用 |
+
+路径拼接规则一致：`<源>/index.json`、`<源>/plugins/<id>/<id>.lwp`。
+
 ## 投稿插件
 
 见 **[CONTRIBUTING.md](./CONTRIBUTING.md)**。最简流程：
