@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     扫描 plugins/<id>/ 生成 index.json 与 README 的插件清单。
 

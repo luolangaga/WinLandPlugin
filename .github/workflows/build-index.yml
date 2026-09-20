@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # PR：只校验插件目录（清单格式、包内一致性、哈希、logo），不写文件
+  # PR: validate plugin folders only (manifest, package consistency, hashes, logo). No files written.
   validate:
     if: github.event_name == 'pull_request'
     runs-on: windows-latest
@@ -30,11 +30,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: 校验插件目录
+
+      - name: Validate plugins
         shell: powershell
         run: .\tools\build-index.ps1 -CheckOnly
 
-  # main：重新生成 index.json 与 README 插件表格并提交
+  # main: regenerate index.json and the README plugin table, then commit them back.
   build:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
@@ -43,11 +44,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 生成 index.json 与 README 清单
+      - name: Build index.json and README table
         shell: powershell
         run: .\tools\build-index.ps1
 
-      - name: 提交生成物
+      - name: Commit generated files
         shell: powershell
         run: |
           git config user.name  "github-actions[bot]"
@@ -57,7 +58,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             git commit -m "chore: rebuild plugin index"
             git push
-            Write-Output "已提交更新后的清单"
+            Write-Output "index.json / README.md updated"
           } else {
-            Write-Output "清单无变化，无需提交"
+            Write-Output "no changes"
           }
