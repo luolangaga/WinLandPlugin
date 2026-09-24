@@ -12,7 +12,7 @@ WinIsland 的「设置 → 插件市场」只请求本仓库根目录的 **[inde
 <!-- PLUGINS:START -->
 | 图标 | 插件（Id） | 版本 | 作者 | 说明 |
 | :---: | :--- | :---: | :--- | :--- |
-| ![](plugins/weather-island/logo.png) | **天气小岛**<br/>`weather-island` | 1.0.2 | luolan | 小岛显示当前温度，展开看今天/明天/后天三天预报。数据来自 Open-Meteo，不用注册也不用填密钥。 |
+| ![](plugins/weather-island/logo.png) | **天气小岛**<br/>`weather-island` | 1.1.0 | luolan | 小岛显示当前温度，展开看三天预报；点一下弹出大卡片——实况细节、未来 24 小时逐时、7 天预报、日出日落与空气质量全在里面。数据来自 Open-Meteo，不用注册也不用填密钥。 |
 | ![](plugins/hw-monitor/logo.png) | **硬件监控**<br/>`hw-monitor` | 1.0.2 | WinIsland | 常驻硬件信息：小岛显示 CPU/GPU/网络/帧率，大岛显示前台窗口 FPS、CPU、GPU 与上下传速度 |
 <!-- PLUGINS:END -->
 
