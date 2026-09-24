@@ -1,11 +1,11 @@
 {
   "id": "weather-island",
   "name": "天气小岛",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "entry_dll": "WeatherIsland.dll",
   "api_version": 2,
   "min_host_version": "2.3.0",
-  "description": "小岛显示当前温度，展开看三天预报；点一下弹出大卡片——实况细节、未来 24 小时逐时、7 天预报、日出日落与空气质量全在里面。数据来自 Open-Meteo，不用注册也不用填密钥。",
+  "description": "小岛显示当前温度，展开看三天预报，点一下弹出大卡片：实况细节、24 小时逐时、7 天预报、日出日落与空气质量。配色与天气图标跟随岛体明暗，数据来自 Open-Meteo，不用注册也不用填密钥。",
   "author": "luolan",
   "icon_glyph": "\uE9CA",
   "homepage": "https://github.com/luolangaga/weather-island",
