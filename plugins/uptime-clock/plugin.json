@@ -1,0 +1,14 @@
+{
+  "id": "uptime-clock",
+  "name": "开机时长",
+  "version": "1.0.0",
+  "entry_dll": "UptimeClock.dll",
+  "api_version": 2,
+  "min_host_version": "2.3.0",
+  "description": "圆圈进度展示开机时长（24 小时一圈），展开显示 CPU 温度与开机记录",
+  "author": "zlwzk",
+  "icon_glyph": "\uE823",
+  "homepage": "https://github.com/zlwzk/uptime-clock",
+  "license": "MIT",
+  "tags": ["uptime", "clock", "system", "temperature"]
+}
