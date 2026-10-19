@@ -1,0 +1,14 @@
+{
+  "id": "power-meter",
+  "name": "功耗计",
+  "version": "1.7.1",
+  "entry_dll": "PowerMeter.dll",
+  "api_version": 2,
+  "min_host_version": "1.1.3",
+  "description": "监测整机实时功耗（瓦）与累计耗电（度/kWh）。用电池=实测功率；插电=按 CPU 占用率估算（自动用电池期实测数据校准，越用越准）。GPU 走 NVML、屏幕按亮度折算。免管理员、零配置、零弹窗。",
+  "author": "Aix",
+  "icon_glyph": "\uE83D",
+  "homepage": "https://github.com/Aix/power-meter",
+  "license": "MIT",
+  "tags": ["battery", "power", "电量", "功耗", "remote"]
+}
