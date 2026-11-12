@@ -1,0 +1,15 @@
+{
+  "id": "hw-sensors",
+  "name": "硬件传感器",
+  "version": "1.0.0",
+  "entry_dll": "HwSensors.dll",
+  "api_version": 2,
+  "min_host_version": "2.4.0",
+  "description": "小岛显示 CPU 温度与功耗，展开看 CPU/GPU 温度、功耗、占用、整机预估功耗与电池状态。数据来自 LibreHardwareMonitor + RAPL 能耗计数器 + ACPI 热区，免管理员、免驱动安装。监控项可在设置里逐项开关，电池损耗可单独隐藏。",
+  "author": "YG",
+  "icon_glyph": "\uEEA1",
+  "license": "MIT",
+  "tags": ["hardware", "cpu", "gpu", "temperature", "power", "battery", "硬件", "温度", "功耗"]
+}
+
+
