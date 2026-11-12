@@ -1,0 +1,14 @@
+{
+  "id": "peripheral-battery",
+  "name": "外设电量",
+  "version": "1.0.0",
+  "entry_dll": "PeripheralBattery.dll",
+  "api_version": 2,
+  "min_host_version": "2.4.0",
+  "description": "在灵动岛上显示无线键鼠、耳机、手柄的剩余电量，低电量自动提醒",
+  "author": "夜光",
+  "icon_glyph": "\uE83F",
+  "homepage": "",
+  "license": "MIT",
+  "tags": ["battery", "peripheral", "device"]
+}
