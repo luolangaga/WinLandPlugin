@@ -1,337 +1,307 @@
 # 外设电量 · WinIsland 插件
 
-在灵动岛上显示键盘、鼠标、耳机、手柄、手机的电量，低电量时提醒你充电。
+在灵动岛上实时显示键盘、鼠标、耳机、手柄、手机的电量与充电状态，低电量时自动提醒充电。支持多种显示UI。
 
-- 设备支持：支持所有蓝牙设备，和2.4g设备。支持用户自行使用Agent添加新设备适配，欢迎PR。目前支持的2.4g设备主要是VXE蜻蜓家的设备，还有部分迈从设备，计划进一步添加。
-- 设备电量列表默认按「电量告急程度排序」，排在列表最上面越需要充电。默认卡片高度自适应，设备数量少卡片体积小，设备数量多会限制卡片大小，保持卡片大小和其他卡片一致。
-- 图标丰富。图标按照设备类型给，对设备类型的检测做了相关优化，确保不会识别出错，把键盘识别成鼠标，关联鼠标图标之类。
-- 支持隐藏。对于不需要查看的设备，可以在设置选择隐藏显示。也可以关闭`显示正在充电的设备`选项。
+- **设备支持**：支持所有标准蓝牙 / BLE 设备，以及 2.4G 无线外设。2.4G品牌支持见下方支持列表。支持用户使用 AI Agent 快速逆向并添加新品牌适配，欢迎提交 PR。
+- **按告急程度排序**：设备列表默认按「电量告急程度」升序排列，越需要充电的设备排在越上方；卡片高度随设备数量自适应，并在上限内与同屏插件保持对齐。
+- **精准设备类型与图标**：蓝牙设备优先解析系统 `Class of Device (CoD)` 主次类别位段，2.4G 设备结合协议通道与产品名识别，准确区分键盘、鼠标、耳机、手柄、手机。
+- **灵活过滤与隐藏**：自动过滤已配对但未开机/休眠的蓝牙与 2.4G 设备；设置页支持按单台设备隐藏，或一键隐藏正在充电的设备。
 
-预览：
+预览(支持传统列表形式与卡片形式切换）：
 
-![聚光卡](docs/spotlight.png)
-
-*点击岛体弹出的大卡片：逐行列出设备名、来源标签（蓝牙 / 2.4G · HID 直读）与百分比。*
-
----
-
-***下面的内容都是AI写的，AI味比较重。关于2.4g设备适配部分建议直接让AI帮你读。***
-
----
-
-## 为什么选这个，而不是「电量与音量」
-
-社区里已经有一个 [`bluetooth-battery`（市场名「电量与音量」）](https://github.com/luolangaga/WinLandPlugin/tree/main/plugins/bluetooth-battery)。它做得不错，但只覆盖蓝牙，而且有几个严重影响体验的bug。这个插件把这些全部推翻重做：
-
-### 1. 图标丰富，设备类型识别准确
-
-`bluetooth-battery` 按设备名猜类型。碰上中文昵称就没辙 —— 本机的「浓韵」「沉香」是两台头戴耳机，名字里既没有 `headset` 也没有 `耳机`，猜不出来就退回一个通用图标。
-
-本插件优先读蓝牙 **Class of Device**（系统在配对时记录的设备类别），名字只作兜底：
-
-| COD Major | 含义 | 判定 |
-| --- | --- | --- |
-| 4 | Audio/Video | 耳机 |
-| 2 | Phone | 手机 |
-| 5 | Peripheral | 看 Minor 位段：键盘 / 鼠标 / 键鼠一体 |
-
-Peripheral 这一段必须**按位取**（`minor & 0x30`），不能直接比相等 —— 本机实测 `minor=32` 是鼠标、`minor=2` 是手柄，写 `minor == 2 or 3 => Mouse` 会把两者都判错。修好之后「浓韵」「沉香」正确落到耳机图标，Xbox 手柄正确落到手柄图标。
-
-认不出类型时给的是**电池图标**，不是电脑图标 —— 外设列表里冒出一台电脑非常误导。
-
-### 2. 支持 2.4G 设备，而且你能自己加
-
-`bluetooth-battery` 完全读不到 2.4G 接收器的电量：这类设备走厂商私有 HID 协议，Windows 的 PnP 电池属性里根本没有它们（实测 USB 2.4G 设备只有 `DEVPKEY_Device_PowerData` 一个字节数组，HID 集合的 50+ 个属性里没有任何 Battery 项）。
-
-本插件为 2.4G 做了可插拔的数据源架构，目前支持 **VXE**（HID 直读）和 **MCHOSE 迈从**（读官方 HUB 缓存）：
-
-```
-Sources/Devices/
-├── IDeviceSource.cs            接口：实现它就能加一个品牌
-├── DeviceSourceRegistry.cs     登记处：加一行就生效
-├── DeviceSourceContext.cs      共享上下文（HID 枚举结果、蓝牙扫描结果、日志）
-├── BluetoothDeviceSource.cs    蓝牙 / 蓝牙 LE
-├── VxeDeviceSource.cs          VXE 2.4G
-└── MchoseDeviceSource.cs       MCHOSE 2.4G
-```
-
-**新增品牌不需要改采集主流程**，也不用碰界面代码。怎么做见下面「[新增一个 2.4G 品牌支持](#新增一个-24g-品牌支持)」，里面有给 Agent 用的完整工作流。欢迎直接开 PR。
-
-### 3. 蓝牙扫描逻辑更严谨：不重复、不误报
-
-与bluetooth-batter相比：
-
-**坑一：同一台设备出现两次。** 键鼠插着 2.4G 接收器、同时又配对过蓝牙时，两条记录都会进列表（`MCHOSE G87 V2 2.4G` 和 `MCHOSE G87 V2-1`）。本插件把名字归一（去掉连接方式后缀、序号尾巴、非字母数字字符）后合并，并按「2.4G 直读 > 蓝牙 LE > 蓝牙」的优先级留最新那条。
-
-**坑二：配对过但未连接的设备也被显示。** 配对过的蓝牙设备及时没有连接，bluetooth-batter也会显示，并显示电量为100%。本插件专门修正以避免类似问题。
-
-本插件额外查一次 WinRT AEP 的 `System.Devices.Aep.IsConnected`（就是系统「设置 → 蓝牙」里显示「已连接」用的同一个标志），只保留真正在线的设备。
-
-保留条件是 `macConnected || nameConnected` —— 一台设备会有多条服务节点（手机走 BLE 连着、它的经典 Hands-Free 节点却报未连），只按 MAC 过滤会把真正在线的设备误杀。
-
-实测效果：**6 台 → 2 台**，`MCHOSE G87 V2-1`、`VXE R1SE+`、`OPPO Enco Free4（丹拿版）`、`沉香` 这些没开机的全部被正确过滤。
-下面是市场上bluetooth-batter的列表显示效果，非常糟糕：
-
-![「电量与音量」的设备列表](docs/compare-bluetooth-battery.png)
-
-*同一台机器上「电量与音量」的列表：9 台里有 5 台根本没开机，全部固定显示 100%，右边还挂着一列 MAC 地址。*
-
-### 4. 可以隐藏不想看到的设备
-
-设置页里每个采集到的设备都有一个开关。关掉的设备不出现在岛上，也不参与低电量提醒。
-
-典型用法：把手机隐藏掉（手机电量在手机上看得更清楚），或者把常插着电的耳机隐藏掉。有「全部恢复显示」一键还原。
+![预览](docs/demo.png)
 
 ---
 
 ## 显示逻辑
 
-- **收起状态**：显示当前电量最告急的那一台（图标 + 名称 + 迷你电量条 + 百分比）
-- **悬停展开**：在卡片高度上限内尽可能多地显示，排序仍是电量最告急的在最上面
-- **点击岛体**：打开聚光卡，看全部设备的完整列表
+- **收起状态**：显示当前电量最告急的那一台（类型图标 + 名称 + 迷你电量条 + 百分比）
+- **悬停展开**：在卡片高度上限（`152 DIP`，最多 4 台）内按电量告急程度从高到低排列
+- **点击岛体**：打开聚光卡，查看全部在线外设的完整列表、来源通道与刷新按钮
 
-悬停展开后的样子（岛体底部那张卡，最下面三行就是外设电量，首行与展开行同款）：
+_下面是两种显示UI的卡片预览_
 
 ![悬停展开的岛体](docs/island-card.png)
 
-*鼠标悬停展开后的岛体。最下面三行就是外设电量卡片 —— 一加 15 40%、浓韵 70%、VXE Mouse 1K Dongle 100%，按告急程度排序。*
-
-首行与下面的每一行用的是同一个 `DeviceRow`：字号（14 / 12 / 13）、图标位宽（20）、电量条宽度（46）、百分比列宽（36）全部一致。展开时首行只是多长出「来源标签」（2.4G / 蓝牙 / 蓝牙 LE），字号不变。
-
-行高 28、行距 4（净间距 32），字号反而比 13 大了一号，观感更紧凑。
-
-行数与卡片高度联动：视图按实际能塞下的设备数算出 `DesiredExpandedHeight`，插件把它同步给宿主 `ExpandedSize`，设备多卡片就长高、设备少就变矮。
-
-### 高度上限为什么是 152
-
-对照同机已装的三个官方插件（用 IL 常量扫出来的真实值）：
-
-| 插件 | CompactSize | ExpandedSize |
-| --- | --- | --- |
-| 硬件监控 | 250 × 40 | **420 × 152** |
-| 天气小岛 | 250 × 40 | 420 × 140 |
-| FlClash 小岛 | 240 × 40 | 460 × 200 |
-
-所以本插件取 `MaxExpandedHeight = 152`，与「硬件监控」齐平。超过这个值，卡片会比同屏邻居高出一大截，把整个展开队列撑歪。
-
-`MaxRows` 由上限反算：`(152 - 5 - 5 - 28 - 8 + 4) / (28 + 4) = 3` 行 → 加上首行共显示 4 台。
+![悬停展开的岛体](docs/island-card1.png)
 
 ---
 
-## 数据来源
+## 数据来源与已支持设备
 
-| 设备 | 通道 |
-| --- | --- |
-| 蓝牙 / 蓝牙 LE 设备 | Windows PnP 电池属性（`{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2`），涵盖 `BTHLE\DEV_*` 与 Hands-Free AG 音频设备 |
-| VXE 2.4G 接收器 | HID 厂商通道 `UsagePage 0xFF04` + `HidD_GetFeature(0x06)` |
-| MCHOSE 2.4G 键盘 | MCHOSE HUB 的本地缓存 `%APPDATA%\MCHOSEHUB\files\config\mc_main_store_key.json` |
+| 品牌 / 类别 | 型号 / 范围 | VID : PID | 协议通道与读取方式 |
+| --- | --- | --- | --- |
+| **蓝牙 / BLE** | 任意蓝牙耳机 / 手机 / 手柄 / 键鼠 | 任意 | Windows PnP 电池属性 `{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2` + WinRT AEP 在线过滤 |
+| **VXE / ATK** | Mouse 1K Dongle（R1SE+ 等 COMPX 接收器） | `3554:F58E` / `373B:*` | HID `UsagePage 0xFF02, Usage 0x0002`（17 字节 COMPX 协议，ReportId `0x08`：`cmd 0x03` 判在线 + `cmd 0x04` 直读电量/充电/电压） |
+| **MCHOSE 迈从** | G87 V2 等 GLW 方案 2.4G 键盘接收器 | `3837:3033` / `41E4:*` | HID `UsagePage 0x0001, Usage 0x0000`（65 字节 GLW 协议，ReportId `0x00`，`flag 0x55`，`cmd 0x05 getFuncConfig` 直读电量/充电/模式；非 GLW 旧设备回退 HUB 缓存） |
+| **Rapoo 雷柏** | VT9PRO / V2M 4K 及一代 VT/V 全系无线游戏鼠标 | `24AE:1205` / `185A` / `1601` / `1600` / `4405` / `418A` 等 | HID `UsagePage 0xFF00, Usage 0x000E`（32 字节 `0xBA` 协议，`target 0xA5/0xFF`，`cmd 0xAA`：经控制端点 `HidD_SetOutputReport` + `HidD_GetInputReport` 直读电量与充电状态） |
 
-> MCHOSE 官方驱动会以管理员权限独占键盘的厂商 HID 通道，插件侧无法直连读取，因此改读它自己写入的缓存。
-> 想拿到最新数值，请让 MCHOSE HUB 在后台运行；关掉它以后数值会停在最后一次读到的值，界面上会标出来源。
-> 键盘没开机时 HUB 会把 `batteryLevel` 写成字符串 `"breakConnect"`，插件识别为非数字并跳过，不会显示假电量。
+_更多设备逐步适配中_
 
 ---
 
-## 新增一个 2.4G 品牌支持
+## 项目架构
 
-> **给用户**：这一段可以直接交给 Agent 做。把下面「给 Agent 的任务说明」整段复制给它就行，它会自己完成探测、实现、测试。
-> 也可以自己照着手写 —— 只需要一个文件 + 一行登记。
-
-### 三步概要
-
-1. 在 `Sources/Devices/` 下新建 `<品牌>DeviceSource.cs`，实现 `IDeviceSource`
-2. 在 `Sources/Devices/DeviceSourceRegistry.cs` 的 `All` 数组里加一行
-3. `dotnet build -c Release -t:Rebuild`，重启 WinIsland，看插件日志确认读到电量
-
-接口只有两个成员：
-
-```csharp
-internal interface IDeviceSource
-{
-    string Brand { get; }                                   // 日志里的品牌名
-    List<DeviceBattery> Collect(DeviceSourceContext context); // 采一轮
-}
-```
-
-`DeviceSourceContext` 提供三样东西：
-
-| 成员 | 用途 |
-| --- | --- |
-| `HidInterfaces` | 本轮枚举到的全部 HID 集合（`Path` / `VendorId` / `ProductId` / `UsagePage` / `Usage` / `InputLength` / `OutputLength` / `FeatureLength` / `ProductName`）。第一次访问才真正枚举，多个品牌共用同一份 |
-| `Bluetooth` | 本轮蓝牙扫描结果（`Succeeded` / `Devices`，每台含 `Mac` / `Name` / `Connected` / `CodMajor` / `CodMinor`） |
-| `Info` / `Debug` / `Warn` | 写日志，会进 `%LOCALAPPDATA%\WinIsland\logs\plugin.peripheral-battery.log` |
-
-写实现时的四条硬要求：
-
-1. **`Collect` 不许抛异常**（外面仍会包 try/catch，但自己挡住更好）；
-2. **读不到就返回空列表**，不要返回电量为 `null` 的占位项 —— 那会在界面上显示一台没有数字的设备；
-3. **`Id` 必须稳定**（同一台设备每次刷新都一样），隐藏设备、低电量去重都靠它；
-4. **`Name` 用产品名**，别带 "2.4G" 之类连接方式后缀 —— 去重逻辑按名字把同型号的蓝牙与 2.4G 记录合并成一条。
-
-### 给 Agent 的任务说明
+项目采用「**宿主生命周期层 → 采集编排与去重层 → 可插拔数据源层 → Win32/WinRT 原生互操作层 → 灵动岛视图层**」的五层解耦架构：
 
 ```text
-任务：为 WinIsland「外设电量」插件（peripheral-battery）新增一个 2.4G 外设品牌支持。
-
-项目根目录：<peripheral-battery 的路径>
-需要读的文件：
-  - Sources/Devices/IDeviceSource.cs          接口定义
-  - Sources/Devices/DeviceSourceContext.cs    能拿到什么
-  - Sources/Devices/VxeDeviceSource.cs        范例：HID Feature 直读
-  - Sources/Devices/MchoseDeviceSource.cs     范例：读厂商驱动缓存
-  - Native/HidNative.cs                       HID 枚举与 Feature 读取的现成实现
-  - README.md 的「新增一个 2.4G 品牌支持」章节
-
-按下面五步做，每步都要有实测证据再进下一步。
-
-【第 1 步 · 摸清接收器暴露了哪些 HID 集合】
-先让用户把设备开机、把接收器插上。然后枚举 HID，重点看目标 VID/PID 命中的每一条
-接口的 UsagePage / Usage / InputLength / OutputLength / FeatureLength / ProductName。
-
-常见形态：
-  · UsagePage 0xFF00~0xFFFF 是厂商自定义集合，电量通常在这里
-  · UsagePage 0x0001 + Usage 0x0002 是鼠标、0x0006 是键盘 —— 这些是标准集合，
-    通常读不到电量，别在它们身上浪费时间
-  · FeatureLength 为 0 表示这条接口不支持 Feature 报告，只能走 Input/Output 通道
-
-【第 2 步 · 判断是 Feature 直读还是别的路子】
-优先试 Feature 报告：对每条厂商集合调 HidD_GetFeature，把 reportId 从 0x00 扫到 0xFF，
-记录哪些 reportId 返回了数据、返回的字节序列长什么样。
-  · 有响应、且某个字节稳定落在 0~100 之间 → 大概率就是电量。多试几次确认稳定，
-    并让用户在设备上改变电量（或换一台同型号）交叉验证
-  · 全部无响应、或恒返回同一帧与发送内容无关 → 这条通道读不了，见下面第 3 步
-
-【第 3 步 · 直读失败时的退路（按优先级）】
-  a. 厂商官方驱动是否把状态写进本地文件？搜 %APPDATA% 与 %LOCALAPPDATA% 下该品牌的目录，
-     找 .json / .db / .cfg，看有没有 battery / level / 电量 之类的字段。
-     MCHOSE 就是这么做的（%APPDATA%\MCHOSEHUB\files\config\mc_main_store_key.json）。
-  b. 官方驱动是否在跑一个本地 HTTP 服务？用 netstat 看它的监听端口，试 GET 接口。
-  c. 都没有 → 在 README 里如实写明这个品牌读不到，不要伪造数据。
-
-【第 4 步 · 写实现】
-新建 Sources/Devices/<品牌>DeviceSource.cs，照 VxeDeviceSource 的结构写：
-  · 从 context.HidInterfaces 里按 VendorId/ProductId 过滤出自己的接收器
-  · 再按 UsagePage 精确挑出能读电量的那一条（同型号接收器常有 8 条接口，
-    只有 1 条能读，不按 UsagePage 过滤会读到空）
-  · 用 context.Debug 打出"命中几条 / 可用通道几条"，方便以后排查
-  · 电量越界（>100）要跳过并记日志，不要直接信
-然后在 DeviceSourceRegistry.All 里加一行。
-
-【第 5 步 · 验证】
-  · dotnet build -c Release -t:Rebuild（必须带 -t:Rebuild，增量构建会跳过复制）
-  · 关掉 WinIsland 再启动（否则 DLL 被占用，报 MSB3027）
-  · 看 %LOCALAPPDATA%\WinIsland\logs\plugin.peripheral-battery.log，
-    确认出现 "· <设备名> = <电量>%（2.4G / <你的 Source>）"
-  · 让用户肉眼确认岛上的卡片
-  · 拔掉接收器，确认设备从列表里消失（不会残留一条假记录）
-
-【提交 PR】
-在 README 的「已支持设备」表格里加上这个品牌，然后开 PR。PR 说明里请写：
-  · 设备型号与 VID/PID
-  · 数据是怎么读到的（Feature 报告第几字节 / 哪个缓存文件的哪个字段）
-  · 你实测到的日志片段
+peripheral-battery/
+├── PeripheralBattery.csproj          项目配置与构建后自动部署到 WinIsland 插件目录的目标
+├── plugin.json                       WinIsland 插件清单（ID、版本、入口类型、默认尺寸与优先级）
+├── rebuild.ps1                       一键停止宿主、强制 Rebuild、独立进程重启宿主并查看日志脚本
+├── Native/                           【原生互操作层】封装 Win32 P/Invoke 与 SetupAPI / HID 通信
+│   ├── HidNative.cs                  HID 接口枚举、Feature 读取、Overlapped 异步读写事务（Transact）
+│   └── PnpNative.cs                  SetupDi 设备树遍历与 DEVPKEY 强类型属性读取（蓝牙电量、CoD 等）
+└── Sources/
+    ├── BatteryPlugin.cs              【插件入口与生命周期】定时调度、低电量提醒、设置面板 UI 构建
+    ├── PluginSettings.cs             【配置持久化】封装宿主 IPluginSettings（阈值、周期、隐藏设备集）
+    ├── BatteryProvider.cs            【采集编排与去重管线】调度所有数据源、归一化设备名、跨通道优先级合并
+    ├── DeviceBattery.cs              【领域模型】统一表示外设电量、充电态、外设类型、连接方式与图标映射
+    ├── BatteryIslandView.cs          【灵动岛主视图】收起态单行最告急设备 + 展开态自适应高度多行列表
+    ├── BatterySpotlightView.cs       【聚光卡视图】点击岛体弹出的完整设备详情面板与手动刷新入口
+    └── Devices/                      【可插拔数据源层】每种连接方式或 2.4G 品牌独立实现 IDeviceSource
+        ├── IDeviceSource.cs          数据源统一接口（Brand + Collect）
+        ├── DeviceSourceContext.cs    单轮采集共享快照（按需惰性枚举的 HID 接口表、蓝牙 AEP 状态、日志）
+        ├── DeviceSourceRegistry.cs   数据源注册表（按顺序注册 Bluetooth / VXE / MCHOSE 等数据源）
+        ├── BluetoothDeviceSource.cs  蓝牙 / BLE 数据源（PnP 电池属性 + WinRT AEP 在线过滤 + CoD 类型识别）
+        ├── VxeDeviceSource.cs        VXE / ATK 2.4G 数据源（COMPX 17 字节 HID 协议直读）
+        └── MchoseDeviceSource.cs     MCHOSE 迈从 2.4G 数据源（GLW 65 字节 HID 协议直读 + HUB 缓存兜底）
 ```
 
-### 已支持设备
+### 核心数据流与模块协作
 
-| 品牌 | 型号 | 读取方式 |
-| --- | --- | --- |
-| VXE | Mouse 1K Dongle（VID `3554` / PID `F58E`） | HID Feature，reportId `0x06`，`byte[3]` |
-| MCHOSE 迈从 | G87 V2 2.4G（VID `3837`） | HUB 缓存 `webIndexList[*].batteryLevel` |
-| 蓝牙 | 任意（耳机 / 手机 / 手柄 / BLE 键鼠） | PnP 电池属性 + AEP 连接状态过滤 |
+```mermaid
+flowchart TD
+    Timer["BatteryPlugin 定时/手动触发刷新"] --> Provider["BatteryProvider.CollectAll()"]
+    Provider --> Ctx["创建 DeviceSourceContext (单轮共享快照)"]
+    Ctx --> Reg["遍历 DeviceSourceRegistry.All"]
+
+    Reg --> BT["BluetoothDeviceSource"]
+    Reg --> VXE["VxeDeviceSource"]
+    Reg --> MC["MchoseDeviceSource"]
+
+    BT --> Pnp["PnpNative + WinRT AEP 连接状态"]
+    VXE --> Hid1["HidNative.Transact (FF02:0002, ReportId 0x08)"]
+    MC --> Hid2["HidNative.Transact (0001:0000, ReportId 0x00)"]
+
+    Pnp --> Merge["BatteryProvider 归一化去重 & 告警程度排序"]
+    Hid1 --> Merge
+    Hid2 --> Merge
+
+    Merge --> Island["BatteryIslandView (小岛收起/展开卡片)"]
+    Merge --> Spot["BatterySpotlightView (聚光卡详情)"]
+    Merge --> Alert["BatteryPlugin 低电量弹窗提醒"]
+```
+
+各模块的关键设计职责：
+
+1. **`Native/HidNative.cs`（通用 HID 事务引擎）**：
+   - `Enumerate()`：通过 `SetupDiGetClassDevs` + `HidP_GetCaps` 一次性枚举本机所有 HID 集合的 `Path`、`VendorId`、`ProductId`、`UsagePage`、`Usage`、`InputLength`、`OutputLength`、`FeatureLength` 与 `ProductName`。
+   - `Transact()`：针对 2.4G 接收器的 Input/Output 双向协议，以 `FILE_FLAG_OVERLAPPED` 打开设备句柄，发送 Output Report 后循环异步 `ReadFile`，支持通过谓词 `Func<byte[], bool> match` 过滤掉心跳杂帧，并在超时时调用 `CancelIoEx` 安全取消，彻底杜绝因无线设备休眠不回包而卡死后台线程。
+2. **`Sources/Devices/DeviceSourceContext.cs`（单轮采集共享快照）**：
+   - 采用 `Lazy<IReadOnlyList<HidNative.HidInterface>>` 缓存当轮 HID 枚举结果：无论接入多少个 2.4G 品牌数据源，每轮刷新只做一次底层系统 HID 枚举。
+3. **`Sources/BatteryProvider.cs`（多源容错与跨通道去重）**：
+   - 每个 `IDeviceSource` 独立 `try/catch` 执行，单个驱动或设备异常绝不波及其他外设；
+   - 对采集到的全部设备按归一化名称（剥离 `2.4G`、`Wireless`、蓝牙配对序号 `-1` 等）分组，同一物理设备同时存在 2.4G 与蓝牙记录时优先保留 2.4G 实时直读结果。
+4. **`Sources/BatteryIslandView.cs`（自适应高度与布局对齐）**：
+   - 收起态展示最告急的 1 台设备；悬停展开态复用同一套 `DeviceRow` 布局，并根据实际可见设备数量动态计算 `DesiredExpandedHeight`（上限 `152 DIP`，与官方「硬件监控」插件严丝合缝对齐）。
+
+
+---
+
+## 新增一个 2.4G 品牌支持（逆向与接入实战指南）
+
+> **给用户**：如果你的 2.4G 无线鼠标、键盘或耳机不在上述适配列表中，只需把下方「[给 Agent 的逆向与适配任务提示词](#给-agent-的逆向与适配任务提示词)」复制给你的 AI Agent（如 Antigravity / Claude Code / Cursor），并提供该设备的**网页驱动网址**（或本机已安装的客户端路径），Agent 即可自动完成协议逆向、真机报文验证、代码接入与重载测试。也欢迎验证通过后提交 PR！
+
+### 一、从 VXE 与 MCHOSE 逆向中总结的核心经验
+
+在重构 VXE 和 MCHOSE 2.4G 电量获取逻辑的过程中，我们踩过并排除了两个极具代表性的误区。理解这些规律能帮你和 Agent 少走 90% 的弯路：
+
+#### 误区 1：盲扫 `HidD_GetFeature` 把静态固件常量当成 100% 电量
+- **案例（VXE 1K Dongle）**：接收器在 `UsagePage 0xFF04` 上暴露了一条 8 字节 Feature Report（`ReportId = 0x06`），读取总是返回 `06 FF 00 64 64 64 A9 97`。旧逻辑误以为 `byte[3] = 0x64 (100)` 是电量，导致鼠标明明只剩 30% 却永远显示 100%。
+- **真相**：逆向 ATK Hub 网页驱动后发现，`0xFF04` 返回的只是接收器固件静态配置与 RF 地址（`A9-97-D3`），`0x64` 是固定常数。真正的通信走的是 **`UsagePage 0xFF02, Usage 0x0002`** 上的 17 字节 Output/Input Report（`ReportId = 0x08`），且需要先发 `cmd 0x03` 查在线状态，再发 `cmd 0x04` 才能拿到真实电量（`30%`）和电池电压（`3682mV`）。
+
+#### 误区 2：没加私有帧头和校验和，误以为“官方驱动独占了设备”
+- **案例（MCHOSE G87 V2）**：直接向接收器的 `0x0001` / `0xFF31` / `0xFF70` 通道裸发 Report 全部无响应，加上 `MCHOSE HUB` 运行时本地配置文件 `mc_main_store_key.json` 长期不更新，旧逻辑误判为“驱动独占了 HID 接口，只能读 JSON 缓存”。
+- **真相**：
+  1. 逆向迈从网页驱动（`GLWDeviceSDK`）发现，键盘接收器要求在 `UsagePage 0x0001, Usage 0x0000` 上发送 65 字节帧，且**必须带有 `tx[1] = 0x55` 协议头和 `tx[4] = sum(tx[5..8]) & 0xFF` 校验和**。只要报文合法，即使 `MCHOSE HUB.exe` 正在后台运行，插件也能随时共存直读实时电量！
+  2. 为什么 `mc_main_store_key.json` 不更新？逆向客户端 Electron 源码发现，`trayService.syncDeviceList` 调用的是 `ipcRenderer.invoke("setStore", "webIndexList", data, false)`——第 4 个参数 `persistent = false` 表示**只更新内存和 Chromium LevelDB LocalStorage，不落盘写入 JSON 文件**。
+
+---
+
+### 二、2.4G 外设协议逆向标准五步法
+
+现在绝大多数国产/主流外设（VXE、ATK、迈从 MCHOSE、狼蛛、VGN、雷柏、达尔优、Keychron 等）都提供了基于浏览器 **WebHID API** 的网页驱动，或基于 **Electron** 的桌面驱动。这意味着它们的完整 HID 协议全部以 JavaScript 明文（或混淆后的 JS Bundle）存在！
+
+#### 第 1 步：枚举本机 HID 接口树，锁定目标接收器通道
+插上 2.4G 接收器并打开外设电源。枚举本机 HID 接口，列出目标品牌 `VID/PID` 下的所有接口（一个接收器通常会暴露 4~8 个接口）：
+- 排除标准键鼠集合（`UsagePage 0x0001` + `Usage 0x0002` 鼠标 / `0x0006` 键盘，或 `UsagePage 0x000C` 消费类控制）。
+- 重点关注 **`InputLength > 0` 且 `OutputLength > 0`**（或 `FeatureLength > 0`）的厂商通道，常见如：
+  - `UsagePage 0xFF00 ~ 0xFFFF`（如 VXE COMPX 的 `0xFF02:0002`，Report 长度 `17`）；
+  - `UsagePage 0x0001, Usage 0x0000`（如迈从 GLW 的 `0x0001:0000`，Report 长度 `65`）。
+
+#### 第 2 步：从网页驱动或客户端 JS Bundle 中提取 WebHID 协议
+- **若有网页驱动（首选）**：
+  1. 获取网页驱动首页 HTML 及引用的 `.js` 资源列表；
+  2. 注意许多多方案网页驱动（如迈从、ATK）会按芯片方案动态加载子模块（例如搜索 `SHARED_DATA`、`compx`、`nordic`、`telink`、`royuan` 等关键字找到真正的设备 SDK chunk）。
+- **若有本地客户端（通常为 Electron）**：
+  1. 检查安装目录下的 `resources/app` 或 `resources/app.asar`；
+  2. 直接检索其中的 `out/main`、`out/preload`、`out/renderer` 下的 JS 文件。
+- **大文件高速检索技巧（避坑）**：
+  - 压缩后的单行 JS 文件动辄 5MB~10MB，**切勿使用带前置通配符的正则（如 `.{0,500}battery`）**，会导致严重回溯卡死。
+  - 应使用 `String.IndexOf("关键字")` 定位偏移量后，再用 `.Substring(Math.Max(0, idx - 300), 800)` 提取上下文。
+  - **核心搜索锚点**：`sendReport`、`sendFeatureReport`、`oninputreport`、`usagePage`、`battery`、`BatteryLevel`、`charge`、`work_mode`、`checkSum`。
+
+#### 第 3 步：还原帧结构、校验和与「休眠/离线判据」
+从 JS 代码中还原出完整的请求与响应规范：
+1. **Report ID 与帧长**：注意 WebHID 的 `device.sendReport(reportId, data)` 会把 `reportId` 与 `data` 分开传，而 Windows `WriteFile` / `ReadFile` 要求把 **`ReportId` 放在 `buffer[0]`**（因此 WebHID 中长度为 16 的 `data` 加上 `ReportId 0x08`，在 Win32 中总长度为 `17` 字节；WebHID 中 `reportId = 0` + 64 字节数组，在 Win32 中总长度为 `65` 字节，且所有下标向后偏移 1 位）。
+2. **帧头与校验和**：
+   - 如 VXE COMPX：`tx[0] = 0x08`，`tx[1] = cmd`，`tx[16] = (0x55 - ((0x08 + sum(tx[1..15])) & 0xFF)) & 0xFF`。
+   - 如迈从 GLW：`tx[0] = 0x00`，`tx[1] = 0x55`，`tx[2] = cmd`，`tx[4] = (tx[5] + tx[6] + tx[7] + tx[8]) & 0xFF`。
+3. **休眠/离线判据与「省电休眠电量保持」机制（极其重要）**：
+   - 2.4G 接收器一直插在电脑上，而无线鼠标/键盘通常静止几十秒就会进入一级省电休眠（如 VXE 返回 `onlineStatus = 0`；迈从 GLW 返回 `00 FA FB 06 00` 停止通信帧）。
+   - 如果一检测到休眠就直接丢弃设备，会导致鼠标/键盘一停手就从灵动岛列表消失，一移动又跳出来。
+   - **正确做法**：在 `DeviceSource` 内按接收器 `(VID, PID)` 维护最近一次唤醒态读到的有效电量快照（`_lastKnownByProduct`）：
+     - 只要接收器仍插在 USB 口上，当设备处于省电休眠态且已有历史电量快照时，**继续沿用休眠前的最后一次有效电量**；若冷启动时设备尚未唤醒（无历史快照），则跳过不显示假电量；
+     - 一旦接收器从 USB 口拔出，立即清除对应缓存，设备立刻从列表移除。
+
+#### 第 4 步：使用内存 P/Invoke 脚本对实机发包验证
+在正式修改插件源码前，用 PowerShell `Add-Type` 编译一小段内联 C#（无需在磁盘创建任何临时文件），直接向实机 HID 路径发送构造好的请求帧并打印返回的 Hex 字节流，确认：
+- 读出的电量百分比与官方网页驱动/客户端显示的数值完全一致；
+- 插拔充电线时，充电标志位能正确变化；
+- 关掉外设电源时，能正确触发离线/休眠分支。
+
+#### 第 5 步：实现 `IDeviceSource`、注册并重载验证
+1. 在 `Sources/Devices/` 下创建 `<Brand>DeviceSource.cs`，调用 `Native.HidNative.Transact(hid.Path, request, responseLen, matchPredicate, timeoutMs)` 完成通信；
+2. 在 `Sources/Devices/DeviceSourceRegistry.cs` 的 `All` 数组中注册该数据源；
+3. 运行 `.\rebuild.ps1` 完成强制重编译与 WinIsland 重启，检查 `%LOCALAPPDATA%\WinIsland\logs\plugin.peripheral-battery.log`。
+
+---
+
+### 三、给 Agent 的逆向与适配任务提示词
+
+你可以将以下提示词直接复制给 Agent，填上你的设备名称和网页驱动地址：
+
+```text
+任务：为 WinIsland「外设电量」插件（peripheral-battery）逆向并新增一个 2.4G 外设品牌支持。
+
+待适配设备：<填写设备品牌与型号，例如：XXX 无线鼠标 / 键盘>
+官方网页驱动地址（或本地客户端路径）：<填写网页驱动 URL，如 https://... 或客户端安装路径>
+项目根目录：<peripheral-battery 的路径>
+
+请先阅读以下项目文件理解现有架构：
+  - README.md（重点阅读「项目架构」与「新增一个 2.4G 品牌支持」章节的逆向五步法）
+  - Native/HidNative.cs（特别是 Enumerate 与 Transact 方法）
+  - Sources/Devices/IDeviceSource.cs
+  - Sources/Devices/DeviceSourceContext.cs
+  - Sources/Devices/DeviceSourceRegistry.cs
+  - Sources/Devices/VxeDeviceSource.cs（范例 1：17 字节 COMPX 协议，先查在线状态 cmd 0x03 再查电量 cmd 0x04）
+  - Sources/Devices/MchoseDeviceSource.cs（范例 2：65 字节 GLW 协议 cmd 0x05 + 休眠帧 FA FB 06 00 识别）
+
+请严格按以下五个步骤执行，每一步都要有实测证据：
+
+【第 1 步 · 枚举本机 HID 接口树】
+在内存中通过 PowerShell Add-Type 或现成工具枚举本机 HID 接口，找出目标设备接收器的 VID / PID，
+以及它暴露的所有 UsagePage / Usage / InputLength / OutputLength / FeatureLength / ProductName。
+
+【第 2 步 · 逆向网页驱动 / 客户端提取 HID 协议】
+抓取目标网页驱动的前端 JS Bundle（注意排查按芯片方案动态加载的子 chunk），或检查本地 Electron 客户端的 JS 代码。
+检索 sendReport / sendFeatureReport / oninputreport / usagePage / battery / charge 等关键字（对单行大 JS 文件请使用 IndexOf + Substring，切勿使用带前置通配符的正则以防回溯卡死）。
+准确还原出：
+  1. 通信使用的 UsagePage、Usage 与 ReportId；
+  2. 请求帧字节长度、帧头魔数、命令号、校验和算法；
+  3. 响应帧的匹配条件、电量百分比所在字节/位段、充电状态所在字节/位段；
+  4. 无线设备关机或休眠时的在线状态查询命令或离线响应帧格式。
+（注：谨记 WebHID 的 sendReport(reportId, data) 在 Win32 WriteFile/ReadFile 中对应 buffer[0] = reportId，data 从 buffer[1] 开始，注意核对 1 字节的下标偏移！）
+
+【第 3 步 · 真机发包实测】
+在不写入外部临时文件的前提下，用 PowerShell 内存 C# 脚本向步骤 1 找到的 HID 接口发送步骤 2 还原的报文，
+打印原始响应 Hex 并解析电量、充电状态和在线状态，与设备当前真实电量交叉核对。
+
+【第 4 步 · 编写数据源并注册】
+1. 在 Sources/Devices/ 下新建 <Brand>DeviceSource.cs，实现 IDeviceSource：
+   - 使用 Native.HidNative.Transact 发送请求并过滤响应帧，设置合理超时（250~300ms）；
+   - 按 (VID, PID) 维护休眠态电量保持缓存（参照 VxeDeviceSource._lastKnownByProduct）：接收器在位且外设进入省电休眠时沿用休眠前最后一次有效电量，防止静止时从列表闪烁消失；接收器拔出时立即清除缓存；冷启动未唤醒且无历史快照时返回空；
+   - 电量越界（<=0 或 >100）跳过；
+   - Name 去除尾部的 " 2.4G" 等连接方式后缀，以便与同设备的蓝牙通道去重合并；
+   - Collect 方法绝不向外抛异常。
+2. 在 Sources/Devices/DeviceSourceRegistry.cs 的 All 数组中登记新数据源。
+3. 在 README.md 的「数据来源与已支持设备」表格中补充该设备的 VID:PID 与协议说明。
+
+【第 5 步 · 编译、重启 WinIsland 与日志验证】
+在项目根目录下执行：
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\rebuild.ps1
+检查 %LOCALAPPDATA%\WinIsland\logs\plugin.peripheral-battery.log，确认日志中出现：
+  "· <设备名> = <真实电量>%（2.4G / HID 直读）"
+且无任何异常报错。
+【第 6 步 · 验证与提交】
+询问用户是否测试完成，若顺利则建议用户提交品牌适配PR到仓库： https://github.com/Starry-AXQG/WinLandPlugins-Dev
+```
 
 ---
 
 ## 设置项
 
-设置页在「WinIsland 设置 → 外设电量」：
+设置页位于「WinIsland 设置 → 外设电量」：
 
 ![设置页](docs/settings.png)
 
-*设置页：显示开关、低电量阈值、刷新间隔、蓝牙 / 充电中设备开关、类型图标、逐个隐藏设备。*
-
-- 是否在灵动岛上显示
-- 低电量阈值（默认 20%）
-- 刷新间隔（默认 30 秒）
-- 显示 / 隐藏蓝牙设备
-- 显示 / 隐藏正在充电的设备（默认显示）
-- 按设备类型区分图标
-- 逐个隐藏指定设备 + 全部恢复显示
-- 立即刷新 / 发送一条测试提醒
-
-## 与其它插件共存
-
-小岛常驻位由 `Priority`（本插件默认 45）决定，不跟「硬件监控」抢那一格；展开时靠 `ExpandedPriority = 200` 排到最前，所以**鼠标一悬停，第一张卡就是外设电量**。
-
-想让它常驻小岛，把 `plugin.peripheral-battery.priority` 调到比硬件监控更高即可。
+- **在灵动岛上显示**：总开关
+- **低电量阈值（%）**：默认 `20%`，低于此值时标红并弹出一次低电量提醒
+- **刷新间隔（秒）**：默认 `30` 秒
+- **显示蓝牙设备**：开启/隐藏所有蓝牙通道外设
+- **显示正在充电的设备**：默认开启，关闭后充电中的设备不占用岛体空间
+- **按设备类型区分图标**：键盘/鼠标/耳机/手柄/手机各自独立图标或统一图标
+- **隐藏设备**：按单台设备独立开关显示状态，支持「全部恢复显示」与「重新扫描设备列表」
+- **立即刷新 / 发一条测试提醒**：快捷调试按钮
 
 ---
 
-## 构建
+## 构建与调试
+
+### 编译与自动部署
+
+必须在插件项目根目录下执行（确保 `global.json` 锁定 `.NET 10.0.x` SDK），且必须带 `-t:Rebuild`：
 
 ```powershell
 $env:DOTNET_ROOT = "$env:USERPROFILE\.dotnet"
 & "$env:USERPROFILE\.dotnet\dotnet.exe" build -c Release -t:Rebuild
 ```
 
-必须带 `-t:Rebuild`：增量构建有时会跳过复制，DLL 时间戳不变、跑的还是旧版本。
-
-或直接跑 `rebuild.ps1`（会先关掉 WinIsland 释放文件锁，编译后自动重启并打印插件日志尾部）：
+或者直接运行根目录下的 `rebuild.ps1`（会自动停止 WinIsland 释放 DLL 文件锁、执行强制 Rebuild、以独立进程重启 WinIsland 并输出最新插件日志）：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\rebuild.ps1
 ```
 
-构建产物会自动复制到 `%LOCALAPPDATA%\Programs\WinIsland\plugins\peripheral-battery\`，重启 WinIsland 生效。
+构建产物由 `PeripheralBattery.csproj` 中的 `CopyToWinIsland` 目标自动部署到：
+`%LOCALAPPDATA%\Programs\WinIsland\plugins\peripheral-battery\`
 
-## 调试
+### 查看运行日志
 
-插件日志：`%LOCALAPPDATA%\WinIsland\logs\plugin.peripheral-battery.log`
+插件运行日志位于：`%LOCALAPPDATA%\WinIsland\logs\plugin.peripheral-battery.log`
 
-日志里会打出每台设备最终采用的图标，便于核对类型判定：
+正常采集时的日志输出示例：
 
+```text
+[INFO] VXE：HID 共 32 条，COMPX 通道（FF02:0002）命中 1 条
+[INFO] VXE：VXE Mouse 1K Dongle 在线，电量=30%，充电=否，电压=3682mV
+[INFO] MCHOSE：HID 共 32 条，GLW 通道（0001:0000）命中 1 条
+[INFO] MCHOSE：MCHOSE G87 V2 直读成功，电量=100%，充电=否，workMode=2
+[INFO] 采集明细：原始 3 条（系统蓝牙 1，HID 直读 2)，去重后 3 条
+[INFO]   · VXE Mouse 1K Dongle = 30%（2.4G / HID 直读） [图标 Mouse U+E962]
+[INFO]   · 浓韵 = 70%（蓝牙 / 系统蓝牙） [图标 Headset U+E7F6]
+[INFO]   · MCHOSE G87 V2 = 100%（2.4G / HID 直读） [图标 Keyboard U+E765]
 ```
-· 浓韵 = 70%（蓝牙 / 系统蓝牙） [图标 Headset U+E7F6]
-· VXE Mouse 1K Dongle = 100%（2.4G / HID 直读） [图标 Mouse U+E962]
-```
-
-视图侧还有一个 `Diagnose` 钩子，宿主每次要求展开/收起都会记一行：
-
-```
-morph → 1（333ms，2 台，高 74）
-```
-
-这是确认「卡片真的被宿主显示了、按几台设备展开、总高多少」最可靠的手段。
-
-## 实测记录（本机 2026-11-11 21:00）
-
-| 设备 | 电量 | 通道 | 图标 |
-| --- | --- | --- | --- |
-| 一加 15 | 40% | 蓝牙（Hands-Free） | 手机 U+E8EA |
-| 浓韵 | 70% | 蓝牙（Hands-Free） | 耳机 U+E7F6 |
-| VXE Mouse 1K Dongle | 100% | 2.4G HID 直读 | 鼠标 U+E962 |
-
-被正确过滤掉的（已配对但没开机）：`MCHOSE G87 V2-1`、`VXE R1SE+`、`OPPO Enco Free4（丹拿版）`、`沉香`。
-
-界面验证（UIA 读取真实布局，屏幕 125% 缩放）：
-
-```
-展开态：浓韵              rect=69,1353 35x24   蓝牙  rect=112,1355   70%  rect=523,1354 45x22
-        VXE Mouse 1K Dongle rect=69,1398 172x24 2.4G  rect=250,1400   100% rect=523,1399 45x22
-```
-
-两行百分比都落在 `x=523 宽 45` → 右边缘同为 568，右对齐一致；名称左边缘同为 69；行距 `45px ÷ 1.25 = 36 DIP`。
-
-聚光卡（`560×460` DIP）图标位 `Width=26` 从 `978.5` 起算，文字从 `1022` 开始 → 图标右边距 **8.8 DIP**。
 
 ---
 
-## 权限与数据
+## 权限与隐私
 
-- **网络**：完全不访问网络
-- **文件**：只读 `%APPDATA%\MCHOSEHUB\files\config\mc_main_store_key.json`（MCHOSE 键盘电量）；其余数据全部来自 Windows API
+- **网络**：运行时完全不访问网络
+- **原生访问**：仅通过 Windows 标准 SetupAPI / HidD / WinRT AEP 接口读取本机已连接外设的电量属性与 HID 报告（对非 GLW 协议的旧款迈从设备只读 `%APPDATA%\MCHOSEHUB\files\config\mc_main_store_key.json`）
 - **管理员权限**：不需要
-- **设置**：只用插件自己的设置键（`peripheral-battery.*`）
+- **配置存储**：仅使用插件独立命名空间（`peripheral-battery.*`）
 
 ## 许可
 
