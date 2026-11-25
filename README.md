@@ -18,7 +18,7 @@ WinIsland 的「设置 → 插件市场」只请求本仓库根目录的 **[inde
 | ![](plugins/token-meter/logo.png) | **Token 计岛**<br/>`token-meter` | 1.2.1 | KujouShiori | 实时显示token用量与费用、今日花费与明细、能展开近7天趋势。默认只读本机会话日志；可选接多家服务商接口（用量或余额，密钥走环境变量，接口挂了自动降级回本地日志）。 |
 | ![](plugins/native-notifications/logo.png) | **Windows 原生通知**<br/>`native-notifications` | 0.5.0 | Timi | 把 Windows 系统通知搬到灵动岛：简要条提醒新消息，悬停查看按应用分组的通知列表，清除时同步删除系统通知中心的记录。 |
 | ![](plugins/clipboard-island/logo.png) | **剪贴板岛**<br/>`clipboard-island` | 1.2.1 | luolangaga | 复制文字或图片时岛上弹提示；展开就是最近几条历史，点任意一条直接粘进你正在输入的窗口 |
-| ![](plugins/peripheral-battery/logo.png) | **外设电量**<br/>`peripheral-battery` | 1.0.0 | 夜光 | 在灵动岛上显示无线键鼠、耳机、手柄的剩余电量，低电量自动提醒 |
+| ![](plugins/peripheral-battery/logo.png) | **外设电量**<br/>`peripheral-battery` | 1.2.0 | Starry-AXQG | 显示2.4无线设备和蓝牙设备的电量，低电量自动提醒。支持新增品牌适配，持续更新支持列表。 |
 | ![](plugins/weather-island/logo.png) | **天气小岛**<br/>`weather-island` | 1.2.1 | luolan | 小岛显示当前温度，展开看三天预报，点一下弹出大卡片：实况细节、24 小时逐时、7 天预报、日出日落与空气质量。配色与天气图标跟随岛体明暗，数据来自 Open-Meteo，不用注册也不用填密钥。 |
 |  | **媒体播放**<br/>`media-playback` | 1.0.8 | Thesed | 独立媒体小部件：双行同步歌词、随音乐闪动的柔和光束和系统媒体播放控制。 |
 | ![](plugins/island-almanac/logo.png) | **岛历**<br/>`island-almanac` | 1.0.0 | 机械 | 桌面上的时间仪表：小岛常驻今天日期，悬停看当月月历、下一个节日与节气，点开是完整月历与提醒。主打中国历法（农历/节气/调休补班），联网只用在你同意的放假数据与订阅地址。 |
