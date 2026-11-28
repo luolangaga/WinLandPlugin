@@ -18,6 +18,7 @@ WinIsland 的「设置 → 插件市场」只请求本仓库根目录的 **[inde
 | ![](plugins/token-meter/logo.png) | **Token 计岛**<br/>`token-meter` | 1.2.1 | KujouShiori | 实时显示token用量与费用、今日花费与明细、能展开近7天趋势。默认只读本机会话日志；可选接多家服务商接口（用量或余额，密钥走环境变量，接口挂了自动降级回本地日志）。 |
 | ![](plugins/native-notifications/logo.png) | **Windows 原生通知**<br/>`native-notifications` | 0.5.0 | Timi | 把 Windows 系统通知搬到灵动岛：简要条提醒新消息，悬停查看按应用分组的通知列表，清除时同步删除系统通知中心的记录。 |
 | ![](plugins/clipboard-island/logo.png) | **剪贴板岛**<br/>`clipboard-island` | 1.2.1 | luolangaga | 复制文字或图片时岛上弹提示；展开就是最近几条历史，点任意一条直接粘进你正在输入的窗口 |
+| ![](plugins/media-deck/logo.png) | **声枢**<br/>`media-deck` | 1.1.1 | Starry-AXQG | 一站式媒体中枢：多实例切换、同步歌词、音频设备快切、音量合成器、空间音效、定时暂停与蓝牙耳机接入提醒 |
 | ![](plugins/peripheral-battery/logo.png) | **外设电量**<br/>`peripheral-battery` | 1.2.0 | Starry-AXQG | 显示2.4无线设备和蓝牙设备的电量，低电量自动提醒。支持新增品牌适配，持续更新支持列表。 |
 | ![](plugins/weather-island/logo.png) | **天气小岛**<br/>`weather-island` | 1.2.1 | luolan | 小岛显示当前温度，展开看三天预报，点一下弹出大卡片：实况细节、24 小时逐时、7 天预报、日出日落与空气质量。配色与天气图标跟随岛体明暗，数据来自 Open-Meteo，不用注册也不用填密钥。 |
 |  | **媒体播放**<br/>`media-playback` | 1.0.8 | Thesed | 独立媒体小部件：双行同步歌词、随音乐闪动的柔和光束和系统媒体播放控制。 |
@@ -26,7 +27,7 @@ WinIsland 的「设置 → 插件市场」只请求本仓库根目录的 **[inde
 |  | **开机时长**<br/>`uptime-clock` | 1.0.0 | zlwzk | 圆圈进度展示开机时长（24 小时一圈），展开显示 CPU 温度与开机记录 |
 | ![](plugins/pomodoro-island/logo.png) | **时钟岛**<br/>`pomodoro-island` | 1.0.0 | hitikem | 灵动岛上的番茄钟 + 随手倒计时：会漏沙会翻转的矢量沙漏，点击岛体打开白色控制台，自动记录今日完成情况。 |
 | ![](plugins/bluetooth-battery/logo.png) | **电量与音量**<br/>`bluetooth-battery` | 1.1.0 | zouyingfeng | 在灵动岛上显示已连接蓝牙设备的电量与系统音量；点岛体查看全部设备、音量并可手动刷新。 |
-| ![](plugins/hw-sensors/logo.png) | **硬件传感器**<br/>`hw-sensors` | 1.0.0 | YG | 小岛显示 CPU 温度与功耗，展开看 CPU/GPU 温度、功耗、占用、整机预估功耗与电池状态。数据来自 LibreHardwareMonitor + RAPL 能耗计数器 + ACPI 热区，免管理员、免驱动安装。监控项可在设置里逐项开关，电池损耗可单独隐藏。 |
+| ![](plugins/hw-sensors/logo.png) | **硬件传感器**<br/>`hw-sensors` | 1.1.1 | Starry-AXQG | 全能且更现代化的硬件传感器插件，一个卡片分区显示CPU、GPU、内存、显存（本地AI占用多少随时可见，展开支持显示多显卡）的占用、温度、功耗，显示网卡的上下传信息（网速小数位数智能控制，按需取长），显示笔记本电池电量，电池损耗，整机功耗。 |
 | ![](plugins/hw-monitor/logo.png) | **硬件监控**<br/>`hw-monitor` | 1.0.3 | WinIsland | 常驻硬件信息：小岛显示 CPU/GPU/网络/帧率，大岛显示前台窗口 FPS、CPU、GPU 与上下传速度 |
 | ![](plugins/device-island/logo.png) | **设备插拔岛**<br/>`device-island` | 1.0.0 | luolangaga | 插 U 盘 / 耳机 / 手柄时岛上自动冒出；展开逐台列出当前设备，带「打开」「安全弹出」 |
 <!-- PLUGINS:END -->
