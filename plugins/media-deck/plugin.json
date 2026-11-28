@@ -1,0 +1,14 @@
+{
+  "id": "media-deck",
+  "name": "声枢",
+  "version": "1.1.1",
+  "entry_dll": "MediaDeck.dll",
+  "api_version": 2,
+  "min_host_version": "2.4.0",
+  "description": "一站式媒体中枢：多实例切换、同步歌词、音频设备快切、音量合成器、空间音效、定时暂停与蓝牙耳机接入提醒",
+  "author": "Starry-AXQG",
+  "icon_glyph": "\uE8D6",
+  "homepage": "https://github.com/Starry-AXQG/MediaDeck",
+  "license": "MIT",
+  "tags": ["media", "audio", "lyrics", "mixer", "bluetooth"]
+}
